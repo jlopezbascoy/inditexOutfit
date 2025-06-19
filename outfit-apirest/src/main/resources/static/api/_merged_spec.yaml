@@ -1,0 +1,27 @@
+---
+servers:
+- url: "http://localhost:8080"
+openapi: "3.0.0"
+paths:
+  /auth/token:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1auth~1token"
+  /productos/listar:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1productos~1listar"
+  /users:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1users"
+  /ai/chat:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1ai~1chat"
+  /editfit/{userId}/{outfitId}:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1editfit~1{userId}~1{outfitId}"
+  /classify/{userId}:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1classify~1{userId}"
+  /users/{userId}:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1users~1{userId}"
+  /outfits/{userId}:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1outfits~1{userId}"
+  /deletefit/{userId}/{outfitId}:
+    $ref: "./ArtifactOpenapi.yml#/paths/~1deletefit~1{userId}~1{outfitId}"
+info:
+  title: "merged spec"
+  description: "merged spec"
+  version: "1.0.0"

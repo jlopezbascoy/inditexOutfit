@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: inditex-outfit
+  profiles:
+    active: develop
+
+  datasource:
+    username: root
+    password: password
+    url: jdbc:mysql://172.30.1.33:3306/inditex-outfit?createDatabaseIfNotExist=true&serverTimezone=UTC
+    initialize: false
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+
+  springdoc:
+    swagger-ui:
+      path: /swagger-ui.html
+
+  management:
+    endpoints:
+      web:
+        exposure:
+          include: "*"
+      logfile:
+        enabled: true
+    endpoint:
+      logfile:
+        external_file: application.log
+
+  logging:
+    level:
+      org.hibernate.SQL: DEBUG
+      org.hibernate.orm.jdbc.bind: TRACE
+      org.springframework.orm.jpa: DEBUG
+      org.hibernate.tool.hbm2ddl: DEBUG
+
+  server:
+    address: 0.0.0.0
+    port: 8080
+
+outfit:
+  oauth2:
+    client-id:     oauth-mkpsbox-oauthieduzzqrhnkzatgmmssnbxpro
+    client-secret: q@I{Vw0p.93PkW[y
+    token-url:     https://auth.inditex.com/openam/oauth2/itxid/itxidmp/sandbox/access_token
+  api:
+    products-url: https://api-sandbox.inditex.com/searchpmpa-sandbox/products
+
+ai:
+  ollama:
+    chat:
+      options:
+        model: mistral

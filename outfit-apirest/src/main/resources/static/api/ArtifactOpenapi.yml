@@ -1,0 +1,505 @@
+openapi: 3.0.0
+info:
+  title: API de Sugerencias de Outfits con productos de Inditex
+  description: Servicio que recibe peticiones de “busca un outfit” y devuelve tokens o resultados
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+
+paths:
+  /auth/token:
+    post:
+      summary: Obtiene un OAuth2 Access Token de Inditex (proxy)
+      description: >
+        Reenvía automáticamente la petición al OAuth2 de Inditex
+        usando `grant_type=client_credentials` y `scope=technology.catalog.read`.
+      security: []
+      responses:
+        '200':
+          description: Access token obtenido con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponseDTO'
+        '401':
+          description: Credenciales de cliente inválidas
+        '502':
+          description: Error al comunicarse con el servidor de OAuth2
+
+  /productos/listar:
+    get:
+      summary: Lista productos del catálogo de Inditex
+      description: >
+        Consulta los productos disponibles haciendo proxy al API público de Inditex.
+      operationId: listarProductos
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+            example: ""
+          description: Término de búsqueda (puede estar vacío)
+      responses:
+        '200':
+          description: Lista de productos obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductDTO'
+        '401':
+          description: No autorizado (token faltante o inválido)
+        '500':
+          description: Error interno del servidor al consumir el API de Inditex
+      security:
+        - bearerAuth: []
+
+  /ai/chat:
+    post:
+      summary: Chatea con DeepSeek‑R1 local via Ollama
+      description: >
+        Envía una conversación (siempre rol `user`) al modelo DeepSeek‑R1 corriendo en Ollama.
+      operationId: chatWithDeepseek
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequestDTO'
+      responses:
+        '200':
+          description: Respuesta generada por DeepSeek‑R1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponseDTO'
+        '502':
+          description: Error comunicándose con el servidor Ollama
+      security: []
+
+  /classify/{userId}:
+    post:
+      summary: Chatea con la IA via Ollama, con detector automatico del prompt
+      description: >
+        Envía una conversación al modelo corriendo en Ollama.
+      operationId: chatClassify
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Identificador del usuario que realiza la petición
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatClassifyRequestDTO'
+      responses:
+        '200':
+          description: Respuesta generada por el modelo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponseClassifyDTO'
+        '502':
+          description: Error comunicándose con el servidor Ollama
+      security: []
+
+  /users:
+    post:
+      summary: Registro de un nuevo usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateDTO'
+      responses:
+        '201':
+          description: Usuario creado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          description: Datos de entrada inválidos
+
+  /users/{userId}:
+    put:
+      summary: Edita un usuario existente
+      operationId: editUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Identificador del usuario a editar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateDTO'
+      responses:
+        '200':
+          description: Usuario actualizado con éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          description: Datos de entrada inválidos
+        '404':
+          description: Usuario no encontrado
+    delete:
+      summary: Elimina un usuario existente
+      operationId: deleteUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Identificador del usuario a eliminar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDeleteDTO'
+      responses:
+        '200':
+          description: Resultado de la operación de borrado
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Usuario eliminado correctamente"
+        '400':
+          description: Contraseña inválida
+        '404':
+          description: Usuario no encontrado
+
+
+  /outfits/{userId}:
+    get:
+      summary: Lista de outfits guardados por un usuario
+      description: >
+        Devuelve una lista de outfits asociados al usuario. 
+        Cada outfit es una lista de productos.
+      operationId: listarOutfitsPorUsuario
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Identificador del usuario
+      responses:
+        '200':
+          description: Lista de outfits obtenida con éxito
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Lista de outfits generados por IA, cada uno con su ID
+                items:
+                  $ref: '#/components/schemas/OutfitResponseDTO'
+        '404':
+          description: No se encontraron outfits para el usuario
+        '500':
+          description: Error interno del servidor
+      security:
+        - bearerAuth: [ ]
+
+  /deletefit/{userId}/{outfitId}:
+    delete:
+      summary: Elimina un outfit de un usuario
+      description: >
+        Elimina un outfit previamente guardado por un usuario específico. 
+        Requiere autenticación y validación de contraseña.
+      operationId: deleteOutfit
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID del usuario al que pertenece el outfit
+        - name: outfitId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del outfit a eliminar (tipo long)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDeleteDTO'
+      responses:
+        '200':
+          description: Outfit eliminado con éxito
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Outfit eliminado correctamente"
+        '400':
+          description: Contraseña inválida
+        '404':
+          description: Usuario u outfit no encontrado
+        '500':
+          description: Error interno del servidor
+      security:
+        - bearerAuth: [ ]
+
+
+  /editfit/{userId}/{outfitId}:
+    put:
+      summary: Edita un outfit existente de un usuario
+      description: >
+        Permite actualizar el contenido de un outfit previamente guardado.
+        Puede usarse para cambiar el título (prompt) o los productos.
+      operationId: editOutfit
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID del usuario propietario del outfit
+        - name: outfitId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del outfit a editar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OutfitEditDTO'
+      responses:
+        '200':
+          description: Outfit editado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutfitResponseDTO'
+        '400':
+          description: Datos de entrada inválidos
+        '404':
+          description: Usuario u outfit no encontrado
+        '500':
+          description: Error interno del servidor
+      security:
+        - bearerAuth: []
+
+
+
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    TokenResponseDTO:
+      type: object
+      required:
+        - id_token
+        - token_type
+        - expires_in
+      properties:
+        id_token:
+          type: string
+        token_type:
+          type: string
+        expires_in:
+          type: integer
+
+    ProductDTO:
+      type: object
+      required:
+        - id
+        - name
+        - price
+        - link
+        - brand
+        - currency
+        - priceValue
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        brand:
+          type: string
+        link:
+          type: string
+          format: uri
+        currency:
+          type: string
+        price:
+          type: object
+        priceValue:
+          type: object
+          properties:
+            current:
+              type: number
+              format: double
+            original:
+              type: number
+              format: double
+              nullable: true
+
+    ChatRequestDTO:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          example: deepseek-r1:1.5b
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessageDTO'
+
+    ChatMessageDTO:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+        content:
+          type: string
+          example: "¿Cuál es la capital de Francia?"
+
+    ChatResponseDTO:
+      type: object
+      properties:
+        response:
+          type: array
+          description: Lista de productos devuelta por DeepSeek‑R1 tras enriquecerlos con Inditex
+          items:
+            $ref: '#/components/schemas/ProductDTO'
+
+    ChatClassifyRequestDTO:
+      type: object
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          example: "Quiero un outfit para una boda informal en la playa"
+
+    ProductResponseClassifyDTO:
+      type: object
+      properties:
+        response:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDTO'
+
+    UserCreateDTO:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    UserDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+      required:
+        - id
+        - username
+
+    UserUpdateDTO:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+
+    UserDeleteDTO:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+
+
+    OutfitResponseDTO:
+      type: object
+      required:
+        - title
+        - id
+        - productos
+      properties:
+        title:
+          type: string
+          description: Prompt que pidio el usuario para conseguir es outfit
+        id:
+          type: integer
+          format: int64
+          description: ID único de la respuesta de la IA
+        productos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductDTO'
+
+    OutfitEditDTO:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario para autenticar la edición
+        addIds:
+          type: array
+          items:
+            type: string
+          description: Lista de IDs de productos para añadir al outfit
+        deleteIds:
+          type: array
+          items:
+            type: string
+          description: Lista de IDs de productos para eliminar del outfit
+
+
+
